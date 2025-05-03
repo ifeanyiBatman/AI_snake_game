@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Snake Madness v2</title>
+    <style>
+        /* Basic styling for the page */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 10px; /* Added horizontal padding */
+            margin: 0;
+            background-color: #2c3e50;
+            font-family: 'Arial', sans-serif;
+            color: #ecf0f1;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: #e74c3c;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Container for all control buttons */
+        .controls-container {
+            display: flex;
+            flex-direction: column; /* Stack control groups */
+            align-items: center;
+            gap: 10px; /* Space between control groups */
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 600px; /* Limit width of controls */
+        }
+
+        /* Styling for individual control groups (like speed, grid size) */
+        .control-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            gap: 8px; /* Space between items in a group */
+            padding: 5px;
+            background-color: rgba(52, 73, 94, 0.5); /* Slightly transparent background */
+            border-radius: 8px;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            margin-right: 5px;
+            white-space: nowrap; /* Prevent label text wrapping */
+        }
+
+        /* General button styling */
+        button {
+            padding: 8px 15px; /* Slightly smaller buttons */
+            font-size: 0.9em;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, opacity 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            min-width: 40px; /* Ensure +/- buttons have some width */
+            text-align: center;
+        }
+
+        /* Specific button colors */
+        button.control-button { background-color: #3498db; } /* Blue for +/- */
+        button#addSnakeButton { background-color: #2ecc71; padding: 10px 20px; font-size: 1em;} /* Green */
+        button#restartButton { background-color: #e74c3c; padding: 10px 20px; font-size: 1em;} /* Red */
+
+        /* Button hover effects */
+        button:hover { opacity: 0.85; }
+        button.control-button:hover { background-color: #2980b9; } /* Darker blue */
+        button#addSnakeButton:hover { background-color: #27ae60; } /* Darker green */
+        button#restartButton:hover { background-color: #c0392b; } /* Darker red */
+
+        /* Display for current speed/grid size */
+        .control-value {
+            font-weight: bold;
+            min-width: 30px; /* Space for value display */
+            text-align: center;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            padding: 5px 8px;
+            border-radius: 4px;
+        }
+
+        /* Container for the game canvas */
+        .game-container {
+            position: relative;
+            border: 5px solid #34495e;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            max-width: 95vw;
+            margin-bottom: 15px;
+            /* Background set by JS */
+            /* Dimensions set by JS */
+        }
+
+        #gameCanvas {
+            display: block;
+            background-color: #1abc9c;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Score display area */
+        .score-area {
+            display: flex;
+            flex-direction: column; /* Stack total and individual scores */
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 600px; /* Match controls width */
+        }
+
+        #totalScore {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        #individualScores {
+            font-size: 0.9em;
+            text-align: center;
+            color: #bdc3c7; /* Lighter color for less emphasis */
+            width: 100%;
+            word-wrap: break-word; /* Allow long score lists to wrap */
+        }
+
+        #gameOverInfo {
+             position: absolute;
+             top: 10px;
+             left: 10px;
+             font-size: 1em;
+             color: #f1c40f;
+             background-color: rgba(44, 62, 80, 0.7);
+             padding: 5px 10px;
+             border-radius: 5px;
+             z-index: 10;
+             display: none;
+         }
+    </style>
+</head>
+<body>
+    <h1>Multi-Snake Madness v2</h1>
+
+    <div class="controls-container">
+        <div class="control-group">
+             <button id="restartButton">Restart Game</button>
+             <button id="addSnakeButton">Add Snake</button>
+        </div>
+        <div class="control-group">
+            <label for="speedValue">Speed:</label>
+            <button id="decreaseSpeed" class="control-button">-</button>
+            <span id="speedValue" class="control-value">?</span>
+            <button id="increaseSpeed" class="control-button">+</button>
+            <span style="font-size: 0.8em; margin-left: 5px;">(Lower = Faster)</span>
+        </div>
+
+         <div class="control-group">
+            <label for="gridSizeValue">Grid Size:</label>
+            <button id="decreaseGrid" class="control-button">-</button>
+            <span id="gridSizeValue" class="control-value">?</span>
+            <button id="increaseGrid" class="control-button">+</button>
+             <span style="font-size: 0.8em; margin-left: 5px;">(Smaller = More Cells)</span>
+        </div>
+
+    </div>
+
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameOverInfo">All snakes crashed!</div>
+    </div>
+
+    <div class="score-area">
+        <div id="totalScore">Total Score: 0</div>
+        <div id="individualScores"></div>
+    </div>
+
+    <script>
+        window.onload = () => {
+            // --- Get DOM Elements ---
+            const canvas = document.getElementById('gameCanvas');
+            const context = canvas.getContext('2d');
+            const totalScoreElement = document.getElementById('totalScore');
+            const individualScoresElement = document.getElementById('individualScores');
+            const gameOverInfoElement = document.getElementById('gameOverInfo');
+            const restartButton = document.getElementById('restartButton');
+            const addSnakeButton = document.getElementById('addSnakeButton');
+            const decreaseSpeedButton = document.getElementById('decreaseSpeed');
+            const increaseSpeedButton = document.getElementById('increaseSpeed');
+            const speedValueElement = document.getElementById('speedValue');
+            const decreaseGridButton = document.getElementById('decreaseGrid');
+            const increaseGridButton = document.getElementById('increaseGrid');
+            const gridSizeValueElement = document.getElementById('gridSizeValue');
+
+            // --- Game Constants & Variables ---
+            let GRID_SIZE = 20; // Initial grid size (pixels per cell) - Can be changed
+            const INITIAL_CANVAS_DIM = 400; // Starting width/height in pixels
+            const CANVAS_INCREMENT = 5; // Tiles to add to width/height per new snake
+            let GAME_SPEED = 120; // Initial game speed (ms per tick) - Can be changed
+
+            // Speed/Grid constraints
+            const MIN_GAME_SPEED = 30; // Fastest speed
+            const MAX_GAME_SPEED = 500; // Slowest speed
+            const SPEED_INCREMENT = 10;
+            const MIN_GRID_SIZE = 5;
+            const MAX_GRID_SIZE = 40;
+            const GRID_SIZE_INCREMENT = 1; // Change grid size by 1 pixel
+
+            // Game state
+            let snakes = [];
+            let food = {};
+            let totalScore = 0;
+            let gameInterval = null;
+            let TILE_COUNT_X, TILE_COUNT_Y;
+            let nextSnakeId = 0;
+            let isGameActive = false;
+
+            // Color Palette
+            const snakeColors = [
+                { body: '#2ecc71', head: '#27ae60' }, { body: '#3498db', head: '#2980b9' },
+                { body: '#f1c40f', head: '#f39c12' }, { body: '#e74c3c', head: '#c0392b' },
+                { body: '#9b59b6', head: '#8e44ad' }, { body: '#1abc9c', head: '#16a085' },
+                { body: '#ecf0f1', head: '#bdc3c7' }
+            ];
+
+            // --- Core Functions ---
+
+            /** Updates the display values for speed and grid size */
+            function updateControlDisplays() {
+                speedValueElement.textContent = GAME_SPEED;
+                gridSizeValueElement.textContent = GRID_SIZE;
+            }
+
+            /**
+             * Recalculates tile counts based on current canvas pixel size and GRID_SIZE.
+             * Adjusts canvas pixel size to be an exact multiple of GRID_SIZE.
+             */
+            function updateGridDimensions() {
+                const currentPixelWidth = canvas.width;
+                const currentPixelHeight = canvas.height;
+
+                TILE_COUNT_X = Math.floor(currentPixelWidth / GRID_SIZE);
+                TILE_COUNT_Y = Math.floor(currentPixelHeight / GRID_SIZE);
+
+                // Ensure canvas dimensions are exact multiples of grid size
+                canvas.width = TILE_COUNT_X * GRID_SIZE;
+                canvas.height = TILE_COUNT_Y * GRID_SIZE;
+                console.log(`Grid dimensions updated: ${TILE_COUNT_X}x${TILE_COUNT_Y} tiles`);
+            }
+
+            /**
+             * Resizes the canvas element (in pixels) and updates grid calculations.
+             * @param {number} newWidth - The new target width in pixels.
+             * @param {number} newHeight - The new target height in pixels.
+             */
+            function resizeCanvasPixels(newWidth, newHeight) {
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                updateGridDimensions(); // Recalculate tiles and adjust final pixel size
+                console.log(`Canvas resized to: ${canvas.width}x${canvas.height}`);
+                drawGame(); // Redraw immediately
+            }
+
+             /**
+             * Changes the grid size, scales snake/food positions, and updates dimensions.
+             * @param {number} newGridSize - The desired new size for each grid cell.
+             */
+             function changeGridSize(newGridSize) {
+                 if (newGridSize < MIN_GRID_SIZE || newGridSize > MAX_GRID_SIZE) {
+                     console.warn(`Grid size ${newGridSize} is out of bounds (${MIN_GRID_SIZE}-${MAX_GRID_SIZE})`);
+                     return; // Ignore invalid size change
+                 }
+
+                 const oldGridSize = GRID_SIZE;
+                 const scaleFactor = oldGridSize / newGridSize;
+                 const currentPixelWidth = canvas.width;
+                 const currentPixelHeight = canvas.height;
+
+                 console.log(`Changing grid size from ${oldGridSize} to ${newGridSize}`);
+                 GRID_SIZE = newGridSize; // Update global grid size
+
+                 // Recalculate tile counts based on *new* grid size and *old* pixel dimensions
+                 TILE_COUNT_X = Math.floor(currentPixelWidth / GRID_SIZE);
+                 TILE_COUNT_Y = Math.floor(currentPixelHeight / GRID_SIZE);
+
+                 // Adjust canvas pixel size to be multiple of new grid size
+                 canvas.width = TILE_COUNT_X * GRID_SIZE;
+                 canvas.height = TILE_COUNT_Y * GRID_SIZE;
+
+                 // Scale snake positions
+                 snakes.forEach(snake => {
+                     if (!snake.isAlive) return;
+                     snake.body.forEach(segment => {
+                         segment.x = Math.round(segment.x * scaleFactor);
+                         segment.y = Math.round(segment.y * scaleFactor);
+                         // Clamp positions to stay within new bounds
+                         segment.x = Math.max(0, Math.min(TILE_COUNT_X - 1, segment.x));
+                         segment.y = Math.max(0, Math.min(TILE_COUNT_Y - 1, segment.y));
+                     });
+                      // Check if scaling caused self-collision immediately (rare but possible)
+                     checkCollisions(snake);
+                 });
+
+                 // Scale food position
+                 if (food.x !== -1) {
+                     food.x = Math.round(food.x * scaleFactor);
+                     food.y = Math.round(food.y * scaleFactor);
+                     // Clamp food position
+                     food.x = Math.max(0, Math.min(TILE_COUNT_X - 1, food.x));
+                     food.y = Math.max(0, Math.min(TILE_COUNT_Y - 1, food.y));
+                     // Ensure food isn't on a snake after scaling
+                     if (isPositionOccupied(food.x, food.y)) {
+                         console.log("Food repositioned after grid resize due to collision.");
+                         placeFood(); // Find a new spot if necessary
+                     }
+                 }
+
+                 updateControlDisplays(); // Update the displayed grid size value
+                 drawGame(); // Redraw with new scaling
+                 console.log(`Grid size changed. New canvas: ${canvas.width}x${canvas.height}, Tiles: ${TILE_COUNT_X}x${TILE_COUNT_Y}`);
+             }
+
+
+            /**
+             * Updates the game speed and restarts the game loop interval.
+             * @param {number} newSpeed - The new interval speed in milliseconds.
+             */
+            function changeGameSpeed(newSpeed) {
+                if (newSpeed < MIN_GAME_SPEED || newSpeed > MAX_GAME_SPEED) {
+                    console.warn(`Speed ${newSpeed} is out of bounds (${MIN_GAME_SPEED}-${MAX_GAME_SPEED})`);
+                    return; // Ignore invalid speed
+                }
+                GAME_SPEED = newSpeed;
+                updateControlDisplays(); // Update the displayed speed value
+
+                // Restart the interval with the new speed if the game is active
+                if (isGameActive) {
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(gameLoop, GAME_SPEED);
+                    console.log(`Game speed changed to: ${GAME_SPEED}ms`);
+                }
+            }
+
+            /** Updates the score display (total and individual) */
+            function updateScoreDisplay() {
+                totalScore = snakes.reduce((sum, snake) => sum + snake.score, 0);
+                totalScoreElement.textContent = `Total Score: ${totalScore}`;
+
+                const individualScoresText = snakes
+                    .map(snake => `Snake ${snake.id} (${snake.color.head}): ${snake.score}${snake.isAlive ? '' : ' [X]'}`)
+                    .join(' | '); // Simple separator
+                individualScoresElement.textContent = individualScoresText || "No snakes yet.";
+            }
+
+
+            /** Initializes or resets the game */
+            function initializeGame() {
+                console.log("Initializing game...");
+                if (gameInterval) clearInterval(gameInterval);
+                isGameActive = false;
+
+                snakes = [];
+                nextSnakeId = 0;
+                totalScore = 0; // Reset total score too
+                gameOverInfoElement.style.display = 'none';
+
+                // Reset controls to defaults (optional, or keep user's last setting)
+                // GAME_SPEED = 120;
+                // GRID_SIZE = 20;
+
+                resizeCanvasPixels(INITIAL_CANVAS_DIM, INITIAL_CANVAS_DIM); // Reset canvas size
+                updateControlDisplays(); // Show initial/reset speed & grid size
+
+                addNewSnake(); // Add the first snake
+
+                if (!isGameActive && snakes.length > 0) {
+                    console.log("Starting game loop...");
+                    gameInterval = setInterval(gameLoop, GAME_SPEED);
+                    isGameActive = true;
+                }
+                updateScoreDisplay(); // Show initial scores
+            }
+
+            /** Adds a new snake */
+            function addNewSnake() {
+                console.log("Attempting to add new snake...");
+                 // Increase canvas size (in tiles) if this isn't the first snake
+                if (snakes.length > 0) {
+                    const newTileWidth = TILE_COUNT_X + CANVAS_INCREMENT;
+                    const newTileHeight = TILE_COUNT_Y + CANVAS_INCREMENT;
+                    resizeCanvasPixels(newTileWidth * GRID_SIZE, newTileHeight * GRID_SIZE);
+                }
+
+                let startPos = findSafeSpawn();
+                if (!startPos) {
+                    console.warn("Could not find a safe spawn point!");
+                    alert("Board might be too crowded to add another snake safely!");
+                    // Resize back if we couldn't add
+                    if (snakes.length > 0) {
+                         const oldTileWidth = TILE_COUNT_X - CANVAS_INCREMENT;
+                         const oldTileHeight = TILE_COUNT_Y - CANVAS_INCREMENT;
+                         resizeCanvasPixels(oldTileWidth * GRID_SIZE, oldTileHeight * GRID_SIZE);
+                    }
+                    return;
+                }
+
+                const newSnake = {
+                    id: nextSnakeId++,
+                    body: [
+                        { x: startPos.x, y: startPos.y },
+                        { x: startPos.x - startPos.dx, y: startPos.y - startPos.dy },
+                        { x: startPos.x - 2 * startPos.dx, y: startPos.y - 2 * startPos.dy }
+                    ],
+                    dx: startPos.dx, dy: startPos.dy,
+                    color: snakeColors[snakes.length % snakeColors.length],
+                    isAlive: true,
+                    justAte: false,
+                    score: 0 // Initialize individual score
+                };
+                snakes.push(newSnake);
+                console.log(`Snake ${newSnake.id} added.`);
+
+                if (snakes.length === 1 && food.x === undefined) { // Place food only if it truly doesn't exist
+                    placeFood();
+                }
+
+                 if (!isGameActive && snakes.length > 0) {
+                    console.log("Starting game loop after adding snake...");
+                    gameInterval = setInterval(gameLoop, GAME_SPEED);
+                    isGameActive = true;
+                 }
+                 updateScoreDisplay(); // Update score display with the new snake
+                 drawGame();
+            }
+
+            /** Finds a safe spawn location */
+             function findSafeSpawn() {
+                const maxAttempts = TILE_COUNT_X * TILE_COUNT_Y;
+                for (let i = 0; i < maxAttempts; i++) {
+                    let x = Math.floor(Math.random() * TILE_COUNT_X);
+                    let y = Math.floor(Math.random() * TILE_COUNT_Y);
+                    const directions = [ {dx: 1, dy: 0}, {dx: -1, dy: 0}, {dx: 0, dy: 1}, {dx: 0, dy: -1} ];
+                    const startDir = directions[Math.floor(Math.random() * directions.length)];
+                    let dx = startDir.dx, dy = startDir.dy;
+                    let isSpawnSafe = true;
+                    for(let j = 0; j < 3; j++) {
+                        const checkX = x - j * dx, checkY = y - j * dy;
+                        if (checkX < 0 || checkX >= TILE_COUNT_X || checkY < 0 || checkY >= TILE_COUNT_Y || isPositionOccupied(checkX, checkY)) {
+                            isSpawnSafe = false; break;
+                        }
+                    }
+                    if (isSpawnSafe) return { x, y, dx, dy };
+                }
+                console.warn("Failed to find safe spawn.");
+                return null;
+             }
+
+            /** Main game loop */
+            function gameLoop() {
+                 if (!isGameActive) return;
+                 let livingSnakes = snakes.filter(s => s.isAlive);
+
+                 if (livingSnakes.length === 0 && snakes.length > 0) {
+                     console.log("All snakes crashed!");
+                     gameOverInfoElement.textContent = `All snakes crashed! Final Score: ${totalScore}`;
+                     gameOverInfoElement.style.display = 'block';
+                     clearInterval(gameInterval);
+                     isGameActive = false;
+                     gameInterval = null;
+                     updateScoreDisplay(); // Show final scores with [X] markers
+                     return;
+                 }
+
+                livingSnakes.forEach(snake => {
+                    decideNextMove(snake);
+                    moveSnake(snake);
+                    checkCollisions(snake);
+                    if (snake.isAlive) checkFood(snake);
+                });
+
+                // Update score display less frequently if needed for performance,
+                // but here it's updated after potential score changes in checkFood.
+                // updateScoreDisplay(); // Moved to checkFood and initialize/add
+
+                drawGame();
+            }
+
+            /** Moves a snake */
+            function moveSnake(snake) {
+                 if (!snake.isAlive) return;
+                const head = { x: snake.body[0].x + snake.dx, y: snake.body[0].y + snake.dy };
+                snake.body.unshift(head);
+                if (snake.justAte) snake.justAte = false;
+                else snake.body.pop();
+            }
+
+            /** Checks for collisions */
+            function checkCollisions(snake) {
+                if (!snake.isAlive) return;
+                const head = snake.body[0];
+
+                // Wall Collision
+                if (head.x < 0 || head.x >= TILE_COUNT_X || head.y < 0 || head.y >= TILE_COUNT_Y) {
+                    console.log(`Snake ${snake.id} hit wall.`);
+                    snake.isAlive = false;
+                    updateScoreDisplay(); // Mark snake as dead in score display
+                    return;
+                }
+                // Self Collision
+                for (let i = 1; i < snake.body.length; i++) {
+                    if (head.x === snake.body[i].x && head.y === snake.body[i].y) {
+                        console.log(`Snake ${snake.id} hit self.`);
+                        snake.isAlive = false;
+                        updateScoreDisplay();
+                        return;
+                    }
+                }
+                // Other Snake Collision
+                 snakes.forEach(otherSnake => {
+                     if (!otherSnake.isAlive || otherSnake.id === snake.id) return;
+                     for (let i = 0; i < otherSnake.body.length; i++) {
+                         if (head.x === otherSnake.body[i].x && head.y === otherSnake.body[i].y) {
+                             console.log(`Snake ${snake.id} hit snake ${otherSnake.id}.`);
+                             snake.isAlive = false;
+                             updateScoreDisplay();
+                             return; // Exit inner loop only
+                         }
+                     }
+                 });
+            }
+
+            /** Checks if snake ate food */
+            function checkFood(snake) {
+                 if (!snake.isAlive || food.x === -1) return;
+                const head = snake.body[0];
+                if (head.x === food.x && head.y === food.y) {
+                    snake.score++; // Increment THIS snake's score
+                    snake.justAte = true;
+                    console.log(`Snake ${snake.id} ate food. Score: ${snake.score}`);
+                    updateScoreDisplay(); // Update display after score change
+                    placeFood();
+                }
+            }
+
+            /** Places food */
+            function placeFood() {
+                let newFoodPosition;
+                 const maxAttempts = TILE_COUNT_X * TILE_COUNT_Y;
+                 let attempt = 0;
+                do {
+                    newFoodPosition = {
+                        x: Math.floor(Math.random() * TILE_COUNT_X),
+                        y: Math.floor(Math.random() * TILE_COUNT_Y)
+                    };
+                    attempt++;
+                     if(attempt > maxAttempts) {
+                         console.error("Could not place food!");
+                         food = { x: -1, y: -1}; return;
+                     }
+                } while (isPositionOccupied(newFoodPosition.x, newFoodPosition.y));
+                food = newFoodPosition;
+                 console.log("Placed food at:", food);
+            }
+
+            /** Checks if position is occupied */
+            function isPositionOccupied(x, y) {
+                for (const snake of snakes) {
+                    if (snake.isAlive) {
+                         for (const segment of snake.body) {
+                            if (segment.x === x && segment.y === y) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            /** Draws the game */
+            function drawGame() {
+                 // Background
+                context.fillStyle = '#16a085';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                // Food
+                 if (food.x !== -1) {
+                     context.fillStyle = '#e74c3c';
+                     context.fillRect(food.x * GRID_SIZE, food.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+                     context.strokeStyle = '#c0392b';
+                     context.strokeRect(food.x * GRID_SIZE, food.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+                 }
+                // Snakes
+                snakes.forEach(snake => {
+                    if (!snake.isAlive) return;
+                    snake.body.forEach((segment, index) => {
+                        context.fillStyle = index === 0 ? snake.color.head : snake.color.body;
+                        context.fillRect(segment.x * GRID_SIZE, segment.y * GRID_SIZE, GRID_SIZE - 1, GRID_SIZE - 1);
+                        context.strokeStyle = '#2c3e50';
+                        context.strokeRect(segment.x * GRID_SIZE, segment.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+                    });
+                });
+            }
+
+            // --- AI Logic (Simplified - no changes needed here for controls/scores) ---
+            function decideNextMove(snake) {
+                if (!snake.isAlive) return;
+                const head = snake.body[0];
+                const possibleMoves = [];
+                const directions = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+
+                for (const move of directions) {
+                    if (snake.body.length > 1 && head.x + move.dx === snake.body[1].x && head.y + move.dy === snake.body[1].y) continue;
+                    const nextX = head.x + move.dx, nextY = head.y + move.dy;
+                    const safe = isSafeForAI(nextX, nextY, snake);
+                    const distance = food.x !== -1 ? Math.abs(nextX - food.x) + Math.abs(nextY - food.y) : Infinity;
+                    possibleMoves.push({ dx: move.dx, dy: move.dy, nextX, nextY, distance, isSafe: safe });
+                }
+
+                let safeMoves = possibleMoves.filter(m => m.isSafe);
+                if (safeMoves.length > 0) {
+                     safeMoves.sort((a, b) => a.distance - b.distance);
+                     snake.dx = safeMoves[0].dx; snake.dy = safeMoves[0].dy;
+                } else {
+                    let desperationMove = possibleMoves.find(m => !(m.dx === -snake.dx && m.dy === -snake.dy && snake.body.length > 1));
+                     if (desperationMove) {
+                         // console.warn(`Snake ${snake.id} NO safe moves! Desperation.`);
+                         snake.dx = desperationMove.dx; snake.dy = desperationMove.dy;
+                     } else {
+                          // console.warn(`Snake ${snake.id} is TRAPPED!`);
+                     }
+                }
+            }
+            function isSafeForAI(x, y, currentSnake) {
+                if (x < 0 || x >= TILE_COUNT_X || y < 0 || y >= TILE_COUNT_Y) return false;
+                 for (const snake of snakes) {
+                    if (!snake.isAlive) continue;
+                    const bodyToCheck = snake.body;
+                    const checkLength = (snake.id === currentSnake.id) ? bodyToCheck.length - 1 : bodyToCheck.length;
+                    for (let i = 0; i < checkLength; i++) {
+                        if (x === bodyToCheck[i].x && y === bodyToCheck[i].y) return false;
+                    }
+                }
+                return true;
+            }
+
+            // --- Event Listeners ---
+            restartButton.addEventListener('click', initializeGame);
+            addSnakeButton.addEventListener('click', addNewSnake);
+            // Speed Controls
+            decreaseSpeedButton.addEventListener('click', () => changeGameSpeed(GAME_SPEED + SPEED_INCREMENT)); // Slower = higher ms
+            increaseSpeedButton.addEventListener('click', () => changeGameSpeed(GAME_SPEED - SPEED_INCREMENT)); // Faster = lower ms
+            // Grid Size Controls
+            decreaseGridButton.addEventListener('click', () => changeGridSize(GRID_SIZE - GRID_SIZE_INCREMENT));
+            increaseGridButton.addEventListener('click', () => changeGridSize(GRID_SIZE + GRID_SIZE_INCREMENT));
+
+            // --- Start Game ---
+            initializeGame();
+
+        }; // End window.onload
+    </script>
+</body>
+</html>
+
